@@ -115,14 +115,15 @@ class VisualizerApp:
             self.start_loc.append(index_i)
             self.start_loc.append(index_j)
             self.start_box.start = True
-            self.start_box.visited = True
-            self.queue.put_nowait(self.start_box)
             self.start_box_set = True
         else:
             # draw wall, toggles the state
             if not self.grid[index_i][index_j].target:
                 if not self.grid[index_i][index_j].start:
-                    self.grid[index_i][index_j].wall = True
+                    if not self.grid[index_i][index_j].wall:
+                        self.grid[index_i][index_j].wall = True
+                    else:
+                        self.grid[index_i][index_j].wall = True
 
     def _mouse_event_rightclick(self, x, y):
         index_i = x // self.properties.box_width
@@ -150,11 +151,14 @@ class VisualizerApp:
                 box = self.grid[i][j]
                 box.draw(self.properties.box_color)
                 if box.wall:
-                    box.draw((90, 90, 90))
+                    box.draw((255, 255, 255))
                 if box.queued:
-                    box.draw((200, 0, 0))
+                    box.draw((255, 79, 88))
                 if box.visited:
-                    box.draw((0, 200, 0))
+                    box.draw((255, 138, 138))
+
+                if box in self.path:
+                    box.draw((12, 4, 4))
 
     def _draw_starticon(self):
         if self.start_loc:
