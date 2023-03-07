@@ -1,6 +1,7 @@
 from tkinter import messagebox, Tk
 import pygame
 import sys
+from queue import Queue
 
 from properties import Properties
 from box import Box
@@ -18,14 +19,17 @@ class VisualizerApp:
         self._init_images()
         self.grid = []
         self._createGrid()
+        self._set_neighbours()
         self.start_box = Box(self, -1, -1)
         self.target_box = Box(self, -1, -1)
         self.target_loc = []
         self.start_loc = []
         self.start_box_set = False
         self.target_box_set = False
+        self.searching = True
         self.begin_search = False
-        self.queue = []
+        self.queue = Queue()
+        self.path = []
 
     def _init_images(self):
         self.start_icon = pygame.image.load('images/home.png')
@@ -42,11 +46,40 @@ class VisualizerApp:
                 arr.append(Box(self, i, j))
             self.grid.append(arr)
 
+    def _set_neighbours(self):
+        for i in range(self.properties.columns):
+            for j in range(self.properties.rows):
+                self.grid[i][j].set_neighbours()
+
     def RunApp(self):
 
         while True:
             self._checkevents()
+            if self.begin_search:
+                self._run_dijkstra()
             self._updatescreen()
+
+    def _run_dijkstra(self):
+        if self.queue.qsize() > 0 and self.searching:
+            current_box = self.queue.get_nowait()
+            current_box.visited = True
+            if current_box == self.target_box:
+                self.searching = False
+                while current_box.prior != self.start_box:
+                    self.path.append(current_box.prior)
+                    current_box = current_box.prior
+
+            else:
+                for neighbour in current_box.neighbours:
+                    if not neighbour.queued and not neighbour.wall:
+                        neighbour.queued = True
+                        neighbour.prior = current_box
+                        self.queue.put_nowait(neighbour)
+        else:
+            if self.searching:
+                Tk().wm_withdraw()
+                messagebox.showinfo("No Solution", "There is no solution!")
+                self.searching = False
 
     def _checkevents(self):
         for event in pygame.event.get():
@@ -82,6 +115,8 @@ class VisualizerApp:
             self.start_loc.append(index_i)
             self.start_loc.append(index_j)
             self.start_box.start = True
+            self.start_box.visited = True
+            self.queue.put_nowait(self.start_box)
             self.start_box_set = True
         else:
             # draw wall, toggles the state
@@ -113,7 +148,13 @@ class VisualizerApp:
         for i in range(self.properties.columns):
             for j in range(self.properties.rows):
                 box = self.grid[i][j]
-                box.draw()
+                box.draw(self.properties.box_color)
+                if box.wall:
+                    box.draw((90, 90, 90))
+                if box.queued:
+                    box.draw((200, 0, 0))
+                if box.visited:
+                    box.draw((0, 200, 0))
 
     def _draw_starticon(self):
         if self.start_loc:
