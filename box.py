@@ -33,7 +33,6 @@ class Box:
             self.neighbours.append(self.grid[self.x][self.y + 1])
 
     def draw(self, color):
-
         if self.x >= 0 and self.y >= 0:
             pygame.draw.rect(self.window, color, (self.x * self.width,
                                                   self.y * self.height, self.width - 1, self.height - 1))
