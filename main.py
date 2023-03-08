@@ -1,16 +1,19 @@
-from tkinter import messagebox, Tk
-import pygame
-import math
-import sys
 from queue import Queue
 from queue import PriorityQueue
+import math
+import sys
+
+from tkinter import messagebox, Tk
+import pygame
 
 from properties import Properties
 from box import Box
 
 
 class VisualizerApp:
+
     def __init__(self):
+
         self.properties = Properties()
         pygame.init()
         self.window = pygame.display.set_mode(
@@ -19,8 +22,11 @@ class VisualizerApp:
         game_icon = pygame.image.load('images/gameicon.jpg')
         pygame.display.set_icon(game_icon)
         self._init_images()
+        self._init_variables()
+        self._create_grid()
+
+    def _init_variables(self):
         self.grid = []
-        self._createGrid()
         self.start_box = Box(self, -1, -1)
         self.target_box = Box(self, -1, -1)
         self.target_loc = []
@@ -40,7 +46,7 @@ class VisualizerApp:
         self.target_icon = pygame.transform.scale(
             self.target_icon, (self.properties.box_width, self.properties.box_height))
 
-    def _createGrid(self):
+    def _create_grid(self):
         for i in range(self.properties.columns):
             arr = []
             for j in range(self.properties.rows):
@@ -52,7 +58,7 @@ class VisualizerApp:
             for j in range(self.properties.rows):
                 self.grid[i][j].set_neighbours()
 
-    def RunApp(self):
+    def run_app(self):
 
         while True:
             self._checkevents()
@@ -110,12 +116,16 @@ class VisualizerApp:
 
         else:
             if self.searching:
-                Tk().wm_withdraw()
-                messagebox.showinfo("No Solution", "There is no solution!")
-                self.searching = False
+                self._no_solution_prompt()
+
+    def _no_solution_prompt(self):
+        Tk().wm_withdraw()
+        messagebox.showinfo("No Solution", "There is no solution!")
+        self.searching = False
 
     def _init_Dijkstra(self):
         self.searching = True
+        self.prior = {}
         self._set_neighbours()
         self.queue.put(self.start_box)
         self.start_box.queued = True
@@ -128,21 +138,19 @@ class VisualizerApp:
             if current_box == self.target_box:
                 self.searching = False
                 self.begin_search.pop()
-                while current_box.prior != self.start_box:
-                    self.path.append(current_box.prior)
-                    current_box = current_box.prior
+                while current_box in self.prior:
+                    current_box = self.prior[current_box]
+                    self.path.append(current_box)
 
             else:
                 for neighbour in current_box.neighbours:
                     if not neighbour.queued:
                         neighbour.queued = True
-                        neighbour.prior = current_box
+                        self.prior[neighbour] = current_box
                         self.queue.put_nowait(neighbour)
         else:
             if self.searching:
-                Tk().wm_withdraw()
-                messagebox.showinfo("No Solution", "There is no solution!")
-                self.searching = False
+                self._no_solution_prompt()
 
     def _checkevents(self):
         for event in pygame.event.get():
@@ -192,25 +200,31 @@ class VisualizerApp:
         if not self.start_box_set:
             # draw start , changes here
             if self.grid[index_i][index_j].wall == False and self.grid[index_i][index_j].target == False:
-                self.start_box = self.grid[index_i][index_j]
-                self.grid[index_i][index_j].start = True
-                self.start_loc.append(index_i)
-                self.start_loc.append(index_j)
-                self.start_box.start = True
-                self.start_box_set = True
+                self._select_start_box(index_i, index_j)
 
         elif self.grid[index_i][index_j].start:
-            self.start_box = None
-            self.grid[index_i][index_j].reset()
-            self.start_loc.pop()
-            self.start_loc.pop()
-            self.start_box_set = False
+            self._unselect_start_box(index_i, index_j)
 
         else:
             # draw wall, toggles the state
             if not self.grid[index_i][index_j].target:
                 if not self.grid[index_i][index_j].start:
                     self.grid[index_i][index_j].reset()
+
+    def _select_start_box(self, i, j):
+        self.start_box = self.grid[i][j]
+        self.grid[i][j].start = True
+        self.start_loc.append(i)
+        self.start_loc.append(j)
+        self.start_box.start = True
+        self.start_box_set = True
+
+    def _unselect_start_box(self, i, j):
+        self.start_box = None
+        self.grid[i][j].reset()
+        self.start_loc.pop()
+        self.start_loc.pop()
+        self.start_box_set = False
 
     def _mouse_event_rightclick(self, x, y):
         index_i = x // self.properties.box_width
@@ -224,6 +238,7 @@ class VisualizerApp:
                 self.target_loc.append(index_j)
                 self.target_box.target = True
                 self.target_box_set = True
+
         elif self.grid[index_i][index_j].target:
             self.target_box = None
             self.grid[index_i][index_j].reset()
@@ -246,17 +261,17 @@ class VisualizerApp:
                 box = self.grid[i][j]
                 box.draw(self.properties.box_color)
                 if box.wall:
-                    box.draw((255, 255, 255))
+                    box.draw(self.properties.wallcolor)
                 if box.queued:
-                    box.draw((255, 79, 88))
+                    box.draw(self.properties.queuedcolor)
                 if box.visited:
-                    box.draw((255, 138, 138))
+                    box.draw(self.properties.visitedcolor)
 
                 if box in self.path:
-                    box.draw((12, 4, 4))
+                    box.draw(self.properties.pathcolor)
 
     def _draw_starticon(self):
-        if self.start_loc:
+        if self.start_box_set:
             start_rect = self.start_icon.get_rect()
             start_rect.left = self.window.get_rect(
             ).left + self.start_loc[0] * self.properties.box_width
@@ -265,7 +280,7 @@ class VisualizerApp:
             self.window.blit(self.start_icon, start_rect)
 
     def _draw_targeticon(self):
-        if self.target_loc:
+        if self.target_box_set:
             target_rect = self.target_icon.get_rect()
             target_rect.left = self.window.get_rect(
             ).left + self.target_loc[0] * self.properties.box_width
@@ -276,4 +291,4 @@ class VisualizerApp:
 
 if __name__ == '__main__':
     visualizerapp = VisualizerApp()
-    visualizerapp.RunApp()
+    visualizerapp.run_app()
