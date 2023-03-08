@@ -1,4 +1,5 @@
 import pygame
+import math
 
 
 class Box:
@@ -22,15 +23,33 @@ class Box:
         self.queued = False
         self.visited = False
 
+    def reset(self):
+        self.start = False
+        self.wall = False
+        self.target = False
+
     def set_neighbours(self):
         if self.x > 0:
-            self.neighbours.append(self.grid[self.x - 1][self.y])
+            if not self.grid[self.x - 1][self.y].wall:
+                self.neighbours.append(self.grid[self.x - 1][self.y])
+
         if self.x < self.properties.columns - 1:
-            self.neighbours.append(self.grid[self.x + 1][self.y])
+            if not self.grid[self.x + 1][self.y].wall:
+                self.neighbours.append(self.grid[self.x + 1][self.y])
+
         if self.y > 0:
-            self.neighbours.append(self.grid[self.x][self.y - 1])
+            if not self.grid[self.x][self.y - 1].wall:
+                self.neighbours.append(self.grid[self.x][self.y - 1])
+
         if self.y < self.properties.rows - 1:
-            self.neighbours.append(self.grid[self.x][self.y + 1])
+            if not self.grid[self.x][self.y + 1].wall:
+                self.neighbours.append(self.grid[self.x][self.y + 1])
+
+    # changes here
+    def heuristic_func(self, target):
+        xdist = abs(target.x - self.x)
+        ydist = abs(target.y - self.y)
+        return xdist + ydist
 
     def draw(self, color):
         if self.x >= 0 and self.y >= 0:

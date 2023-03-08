@@ -1,7 +1,9 @@
 from tkinter import messagebox, Tk
 import pygame
+import math
 import sys
 from queue import Queue
+from queue import PriorityQueue
 
 from properties import Properties
 from box import Box
@@ -19,15 +21,14 @@ class VisualizerApp:
         self._init_images()
         self.grid = []
         self._createGrid()
-        self._set_neighbours()
         self.start_box = Box(self, -1, -1)
         self.target_box = Box(self, -1, -1)
         self.target_loc = []
         self.start_loc = []
         self.start_box_set = False
         self.target_box_set = False
-        self.searching = True
-        self.begin_search = False
+        self.searching = False
+        self.begin_search = []
         self.queue = Queue()
         self.path = []
 
@@ -55,23 +56,77 @@ class VisualizerApp:
 
         while True:
             self._checkevents()
+            # changes here
             if self.begin_search:
-                self._run_dijkstra()
+                if self.begin_search[0] == 1:
+                    self._run_dijkstra()
+                elif self.begin_search[0] == 2:
+                    self._run_A_star()
             self._updatescreen()
 
+    def _init_A_star(self):
+        self.count = 0
+        self.priority_queue = PriorityQueue()
+        self.priority_queue.put((0, self.count, self.start_box))
+        self.prior = {}
+        self.g_score = {Box: math.inf for row in self.grid for Box in row}
+        self.g_score[self.start_box] = 0
+        self.f_score = {Box: math.inf for row in self.grid for Box in row}
+        self.f_score[self.start_box] = self.start_box.heuristic_func(
+            self.target_box)
+
+        self.open_set = {self.start_box}
+
+    def _run_A_star(self):
+
+        if not self.priority_queue.empty() and self.searching:
+            current_box = self.priority_queue.get()[2]
+            self.open_set.remove(current_box)
+            if current_box == self.target_box:
+                self.searching = False
+                self.begin_search.pop()
+                while current_box in self.prior:
+                    current_box = self.prior[current_box]
+                    self.path.append(current_box)
+
+            for neighbor in current_box.neighbours:
+                temp_g_score = self.g_score[current_box] + 1
+                if temp_g_score < self.g_score[neighbor]:
+                    self.prior[neighbor] = current_box
+                    self.g_score[neighbor] = temp_g_score
+                    self.f_score[neighbor] = temp_g_score + \
+                        neighbor.heuristic_func(self.target_box)
+                    if neighbor not in self.open_set:
+                        self.count += 1
+                        self.priority_queue.put(
+                            (self.f_score[neighbor], self.count, neighbor))
+                        self.open_set.add(neighbor)
+                        if neighbor != self.target_box:
+                            neighbor.queued = True
+            if current_box != self.start_box:
+                current_box.visited = True
+
+        else:
+            if self.searching:
+                Tk().wm_withdraw()
+                messagebox.showinfo("No Solution", "There is no solution!")
+                self.searching = False
+
     def _run_dijkstra(self):
+
         if self.queue.qsize() > 0 and self.searching:
             current_box = self.queue.get_nowait()
             current_box.visited = True
             if current_box == self.target_box:
                 self.searching = False
+                self.begin_search.pop()
                 while current_box.prior != self.start_box:
                     self.path.append(current_box.prior)
                     current_box = current_box.prior
 
             else:
                 for neighbour in current_box.neighbours:
-                    if not neighbour.queued and not neighbour.wall:
+                    if not neighbour.queued:
                         neighbour.queued = True
                         neighbour.prior = current_box
                         self.queue.put_nowait(neighbour)
@@ -87,12 +142,15 @@ class VisualizerApp:
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            # changes here
+            if self.searching:
+                continue
             # allows drag n draw
             elif event.type == pygame.MOUSEMOTION:
                 mouse_x = pygame.mouse.get_pos()[0]
                 mouse_y = pygame.mouse.get_pos()[1]
                 if event.buttons[0]:
-                    self._mouse_event_leftclick(mouse_x, mouse_y)
+                    self._mouse_event_createwall(mouse_x, mouse_y)
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x = pygame.mouse.get_pos()[0]
@@ -101,42 +159,75 @@ class VisualizerApp:
                     self._mouse_event_leftclick(mouse_x, mouse_y)
                 elif pygame.mouse.get_pressed()[2]:
                     self._mouse_event_rightclick(mouse_x, mouse_y)
-            # start algorithm
-            if event.type == pygame.KEYDOWN and self.target_box_set:
-                self.begin_search = True
-                self.start_box.visited = True
-                self.queue.put_nowait(self.start_box)
+            # start algorithm , changes here
+            if event.type == pygame.KEYDOWN and self.target_box_set and self.start_box_set and not self.searching:
+                # changes here
+                if event.key == pygame.K_1:
+                    self.begin_search.append(1)
+                    self._search_init()
+                elif event.key == pygame.K_2:
+                    self.begin_search.append(2)
+                    self._search_init()
+                    self._init_A_star()
+    # new function
+
+    def _search_init(self):
+        self.searching = True
+        self._set_neighbours()
+
+    def _mouse_event_createwall(self, x, y):
+        index_i = x // self.properties.box_width
+        index_j = y // self.properties.box_height
+        if self.start_box_set:
+            if not self.grid[index_i][index_j].target:
+                if not self.grid[index_i][index_j].start:
+                    if not self.grid[index_i][index_j].wall:
+                        self.grid[index_i][index_j].wall = True
 
     def _mouse_event_leftclick(self, x, y):
         index_i = x // self.properties.box_width
         index_j = y // self.properties.box_height
         if not self.start_box_set:
-            # draw start
-            self.start_box = self.grid[index_i][index_j]
-            self.grid[index_i][index_j].start = True
-            self.start_loc.append(index_i)
-            self.start_loc.append(index_j)
-            self.start_box.start = True
-            self.start_box_set = True
+            # draw start , changes here
+            if self.grid[index_i][index_j].wall == False and self.grid[index_i][index_j].target == False:
+                self.start_box = self.grid[index_i][index_j]
+                self.grid[index_i][index_j].start = True
+                self.start_loc.append(index_i)
+                self.start_loc.append(index_j)
+                self.start_box.start = True
+                self.start_box_set = True
+
+        elif self.grid[index_i][index_j].start:
+            self.start_box = None
+            self.grid[index_i][index_j].reset()
+            self.start_loc.pop()
+            self.start_loc.pop()
+            self.start_box_set = False
+
         else:
             # draw wall, toggles the state
             if not self.grid[index_i][index_j].target:
                 if not self.grid[index_i][index_j].start:
-                    if not self.grid[index_i][index_j].wall:
-                        self.grid[index_i][index_j].wall = True
-                    else:
-                        self.grid[index_i][index_j].wall = True
+                    self.grid[index_i][index_j].reset()
 
     def _mouse_event_rightclick(self, x, y):
         index_i = x // self.properties.box_width
         index_j = y // self.properties.box_height
         if not self.target_box_set:
-            self.target_box = self.grid[index_i][index_j]
-            self.grid[index_i][index_j].target = True
-            self.target_loc.append(index_i)
-            self.target_loc.append(index_j)
-            self.target_box.target = True
-            self.target_box_set = True
+            # changes here
+            if self.grid[index_i][index_j].wall == False and self.grid[index_i][index_j].start == False:
+                self.target_box = self.grid[index_i][index_j]
+                self.grid[index_i][index_j].target = True
+                self.target_loc.append(index_i)
+                self.target_loc.append(index_j)
+                self.target_box.target = True
+                self.target_box_set = True
+        elif self.grid[index_i][index_j].target:
+            self.target_box = None
+            self.grid[index_i][index_j].reset()
+            self.target_loc.pop()
+            self.target_loc.pop()
+            self.target_box_set = False
 
     def _updatescreen(self):
         self.window.fill(self.properties.bg_color)
