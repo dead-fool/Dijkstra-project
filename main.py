@@ -65,6 +65,8 @@ class VisualizerApp:
             self._updatescreen()
 
     def _init_A_star(self):
+        self.searching = True
+        self._set_neighbours()
         self.count = 0
         self.priority_queue = PriorityQueue()
         self.priority_queue.put((0, self.count, self.start_box))
@@ -111,6 +113,12 @@ class VisualizerApp:
                 Tk().wm_withdraw()
                 messagebox.showinfo("No Solution", "There is no solution!")
                 self.searching = False
+
+    def _init_Dijkstra(self):
+        self.searching = True
+        self._set_neighbours()
+        self.queue.put(self.start_box)
+        self.start_box.queued = True
 
     def _run_dijkstra(self):
 
@@ -164,16 +172,10 @@ class VisualizerApp:
                 # changes here
                 if event.key == pygame.K_1:
                     self.begin_search.append(1)
-                    self._search_init()
+                    self._init_Dijkstra()
                 elif event.key == pygame.K_2:
                     self.begin_search.append(2)
-                    self._search_init()
                     self._init_A_star()
-    # new function
-
-    def _search_init(self):
-        self.searching = True
-        self._set_neighbours()
 
     def _mouse_event_createwall(self, x, y):
         index_i = x // self.properties.box_width
