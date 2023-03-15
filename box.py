@@ -27,6 +27,17 @@ class Box:
         self.wall = False
         self.target = False
 
+    def resetwall(self):
+        self.wall = False
+
+    def resetflags(self):
+        self.queued = False
+        self.visited = False
+
+    def resetvalues(self):
+        self.neighbours = []
+        self.prior = None
+
     def set_neighbours(self):
         if self.x > 0:
             if not self.grid[self.x - 1][self.y].wall:

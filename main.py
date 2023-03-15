@@ -1,10 +1,12 @@
 from queue import Queue
 from queue import PriorityQueue
 import math
+import random
 import sys
 
 from tkinter import messagebox, Tk
 import pygame
+
 
 from properties import Properties
 from box import Box
@@ -24,6 +26,7 @@ class VisualizerApp:
         self._init_images()
         self._init_variables()
         self._create_grid()
+        self.homescreen = False  # true
 
     def _init_variables(self):
         self.grid = []
@@ -34,9 +37,18 @@ class VisualizerApp:
         self.start_box_set = False
         self.target_box_set = False
         self.searching = False
-        self.begin_search = []
+        self.completed = False
+        self.begin_search = {'dijk': False, 'astar': False}
         self.queue = Queue()
         self.path = []
+
+    def _reset_algo_variables(self):
+        self.queue = Queue()
+        self.path = []
+        for i in range(self.properties.columns):
+            for j in range(self.properties.rows):
+                self.grid[i][j].resetflags()
+                self.grid[i][j].resetvalues()
 
     def _init_images(self):
         self.start_icon = pygame.image.load('images/home.png')
@@ -64,9 +76,9 @@ class VisualizerApp:
             self._checkevents()
             # changes here
             if self.begin_search:
-                if self.begin_search[0] == 1:
+                if self.begin_search['dijk']:
                     self._run_dijkstra()
-                elif self.begin_search[0] == 2:
+                elif self.begin_search['astar']:
                     self._run_A_star()
             self._updatescreen()
 
@@ -92,7 +104,8 @@ class VisualizerApp:
             self.open_set.remove(current_box)
             if current_box == self.target_box:
                 self.searching = False
-                self.begin_search.pop()
+                self.completed = True
+                self.begin_search['astar'] = False
                 while current_box in self.prior:
                     current_box = self.prior[current_box]
                     self.path.append(current_box)
@@ -116,12 +129,15 @@ class VisualizerApp:
 
         else:
             if self.searching:
+                self.begin_search['astar'] = False
                 self._no_solution_prompt()
 
     def _no_solution_prompt(self):
+        self.searching = False
+        self.completed = True
+        self._reset_algo_variables()
         Tk().wm_withdraw()
         messagebox.showinfo("No Solution", "There is no solution!")
-        self.searching = False
 
     def _init_Dijkstra(self):
         self.searching = True
@@ -137,7 +153,8 @@ class VisualizerApp:
             current_box.visited = True
             if current_box == self.target_box:
                 self.searching = False
-                self.begin_search.pop()
+                self.completed = True
+                self.begin_search['dijk'] = False
                 while current_box in self.prior:
                     current_box = self.prior[current_box]
                     self.path.append(current_box)
@@ -150,6 +167,7 @@ class VisualizerApp:
                         self.queue.put_nowait(neighbour)
         else:
             if self.searching:
+                self.begin_search['dijk'] = False
                 self._no_solution_prompt()
 
     def _checkevents(self):
@@ -165,25 +183,68 @@ class VisualizerApp:
             elif event.type == pygame.MOUSEMOTION:
                 mouse_x = pygame.mouse.get_pos()[0]
                 mouse_y = pygame.mouse.get_pos()[1]
+
                 if event.buttons[0]:
-                    self._mouse_event_createwall(mouse_x, mouse_y)
+                    if not self.homescreen:
+                        self._mouse_event_createwall(mouse_x, mouse_y)
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
+                if self.completed:
+                    self._reset_algo_variables()
                 mouse_x = pygame.mouse.get_pos()[0]
                 mouse_y = pygame.mouse.get_pos()[1]
-                if pygame.mouse.get_pressed()[0]:
-                    self._mouse_event_leftclick(mouse_x, mouse_y)
-                elif pygame.mouse.get_pressed()[2]:
-                    self._mouse_event_rightclick(mouse_x, mouse_y)
+                if not self.homescreen:
+                    if pygame.mouse.get_pressed()[0]:
+                        self._mouse_event_leftclick(mouse_x, mouse_y)
+                    elif pygame.mouse.get_pressed()[2]:
+                        self._mouse_event_rightclick(mouse_x, mouse_y)
             # start algorithm , changes here
-            if event.type == pygame.KEYDOWN and self.target_box_set and self.start_box_set and not self.searching:
+            if event.type == pygame.KEYDOWN and self.target_box_set and self.start_box_set and not self.searching and not self.homescreen:
                 # changes here
+
                 if event.key == pygame.K_1:
-                    self.begin_search.append(1)
+                    self.begin_search['dijk'] = True
+                    self.completed = False
+                    self._reset_algo_variables()
                     self._init_Dijkstra()
                 elif event.key == pygame.K_2:
-                    self.begin_search.append(2)
+                    self.begin_search['astar'] = True
+                    self.completed = False
+                    self._reset_algo_variables()
                     self._init_A_star()
+
+            if event.type == pygame.KEYDOWN and not self.searching:
+                if event.key == pygame.K_r:
+                    self._reset_algo_variables()
+                    self._resetgrid(2)
+                    self._init_randomgrid()
+
+    def _resetgrid(self, val):
+        for i in range(self.properties.columns):
+            for j in range(self.properties.rows):
+                self.grid[i][j].resetwall
+
+    def _init_randomgrid(self):
+        for i in range(self.properties.columns):
+            for j in range(self.properties.rows):
+                self.grid[i][j].wall == False
+                if self.grid[i][j].start == True:
+                    continue
+                elif self.grid[i][j].target == True:
+                    continue
+                else:
+                    self.grid[i][j].wall = self._get_randomwall()
+
+    def _get_randomwall(self):
+        n = random.randint(1, 100)
+        if n % 5 < 2:
+            n = random.randint(1, 2)
+            if n == 1:
+                return False
+            if n == 2:
+                return True
+        else:
+            return False
 
     def _mouse_event_createwall(self, x, y):
         index_i = x // self.properties.box_width
@@ -247,13 +308,19 @@ class VisualizerApp:
             self.target_box_set = False
 
     def _updatescreen(self):
-        self.window.fill(self.properties.bg_color)
-        self._drawGrid()
-        if self.start_box_set:
-            self._draw_starticon()
-        if self.target_box_set:
-            self._draw_targeticon()
+        if not self.homescreen:
+            self.window.fill(self.properties.bg_color)
+            self._drawGrid()
+            if self.start_box_set:
+                self._draw_starticon()
+            if self.target_box_set:
+                self._draw_targeticon()
+        else:
+            self._displayhomescreen()
         pygame.display.flip()
+
+    def _displayhomescreen(self):
+        pass
 
     def _drawGrid(self):
         for i in range(self.properties.columns):
