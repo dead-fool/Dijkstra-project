@@ -6,6 +6,7 @@ import sys
 
 from tkinter import messagebox, Tk
 import pygame
+import pygame.font
 
 
 from properties import Properties
@@ -27,6 +28,7 @@ class VisualizerApp:
         self._init_images()
         self._init_variables()
         self._create_grid()
+        self._prep_help_msg()
         self.homescreen = True
         self.helpscreen = False
         self.start_custom = Button(self, 'start  custom')
@@ -383,6 +385,8 @@ class VisualizerApp:
             self._displayhomescreen()
             if not self.helpscreen:
                 self._displayhomebuttons()
+            if self.helpscreen:
+                self.window.blit(self.help_image, self.help_image_rect)
         pygame.display.flip()
 
     def _displayhomescreen(self):
@@ -395,6 +399,21 @@ class VisualizerApp:
         self.start_random.draw_button()
         self.help_button.draw_button()
         self.exit_button.draw_button()
+
+    def _prep_help_msg(self):
+        msg = ''' 
+        - Left Click on the cell to select/unselect starting node\n
+        - Once Starting Node is selected, left click and drag to\ninsert wall
+        - Select 1 to run DIJKSTRA'S ALGORITHM\n
+        - SELECT 2 to run A* ALGORITHM\n
+        - Right Click on the cell to select target node\n- Press 'ESC' to go back to Home Menu'''
+        text_color = (0, 0, 0)
+        font = pygame.font.SysFont(None, 28)
+        rect = pygame.Rect(0, 0, 300, 400)
+        rect.center = self.window.get_rect().center
+        self.help_image = font.render(msg, True, text_color)
+        self.help_image_rect = self.help_image.get_rect()
+        self.help_image_rect.center = rect.center
 
     def _drawGrid(self):
         for i in range(self.properties.columns):
