@@ -10,6 +10,7 @@ import pygame
 
 from properties import Properties
 from box import Box
+from button import Button
 
 
 class VisualizerApp:
@@ -26,7 +27,12 @@ class VisualizerApp:
         self._init_images()
         self._init_variables()
         self._create_grid()
-        self.homescreen = False  # true
+        self.homescreen = True
+        self.helpscreen = False
+        self.start_custom = Button(self, 'start  custom')
+        self.start_random = Button(self, 'start  random')
+        self.help_button = Button(self, 'help')
+        self.exit_button = Button(self, 'exit')
 
     def _init_variables(self):
         self.grid = []
@@ -57,6 +63,7 @@ class VisualizerApp:
         self.target_icon = pygame.image.load('images/target.png')
         self.target_icon = pygame.transform.scale(
             self.target_icon, (self.properties.box_width, self.properties.box_height))
+        self.homescreen_img = pygame.image.load('images/landing.png')
 
     def _create_grid(self):
         for i in range(self.properties.columns):
@@ -73,6 +80,8 @@ class VisualizerApp:
     def run_app(self):
 
         while True:
+            if self.homescreen:
+                self._check_hover()
             self._checkevents()
             # changes here
             if self.begin_search:
@@ -81,6 +90,61 @@ class VisualizerApp:
                 elif self.begin_search['astar']:
                     self._run_A_star()
             self._updatescreen()
+            if self.homescreen and not self.helpscreen:
+                self._click_action()
+
+    def _click_action(self):
+
+        if self.exit_button.selected:
+            pygame.quit()
+            sys.exit()
+
+        elif self.help_button.selected:
+            pygame.time.delay(1000)
+            self.helpscreen = True
+            self.help_button.selected = False
+
+        elif self.start_custom.selected:
+            self.homescreen = False
+            self._reset_algo_variables()
+            for i in range(self.properties.columns):
+                for j in range(self.properties.rows):
+                    self.grid[i][j].resetwall()
+            self.start_custom.selected = False
+
+        elif self.start_random.selected:
+            self.homescreen = False
+            self._reset_algo_variables()
+            self._resetgrid(2)
+            self._init_randomgrid()
+            self.start_random.selected = False
+
+    def _check_hover(self):
+        self._hover_reset()
+        if self.start_random.rect.collidepoint(pygame.mouse.get_pos()) and not self.start_random.selected:
+            self.start_random.hover = True
+        elif self.start_custom.rect.collidepoint(pygame.mouse.get_pos()) and not self.start_custom.selected:
+            self.start_custom.hover = True
+        elif self.help_button.rect.collidepoint(pygame.mouse.get_pos()) and not self.help_button.selected:
+            self.help_button.hover = True
+        elif self.exit_button.rect.collidepoint(pygame.mouse.get_pos()) and not self.exit_button.selected:
+            self.exit_button.hover = True
+
+    def _buttoncheck(self):
+        if self.start_random.rect.collidepoint(pygame.mouse.get_pos()):
+            self.start_random.selected = True
+        elif self.start_custom.rect.collidepoint(pygame.mouse.get_pos()):
+            self.start_custom.selected = True
+        elif self.help_button.rect.collidepoint(pygame.mouse.get_pos()):
+            self.help_button.selected = True
+        elif self.exit_button.rect.collidepoint(pygame.mouse.get_pos()):
+            self.exit_button.selected = True
+
+    def _hover_reset(self):
+        self.start_random.hover = False
+        self.start_custom.hover = False
+        self.help_button.hover = False
+        self.exit_button.hover = False
 
     def _init_A_star(self):
         self.searching = True
@@ -191,6 +255,8 @@ class VisualizerApp:
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if self.completed:
                     self._reset_algo_variables()
+                if self.homescreen:
+                    self._buttoncheck()
                 mouse_x = pygame.mouse.get_pos()[0]
                 mouse_y = pygame.mouse.get_pos()[1]
                 if not self.homescreen:
@@ -199,6 +265,10 @@ class VisualizerApp:
                     elif pygame.mouse.get_pressed()[2]:
                         self._mouse_event_rightclick(mouse_x, mouse_y)
             # start algorithm , changes here
+            if event.type == pygame.KEYDOWN and not self.searching and not self.homescreen:
+                if event.key == pygame.K_ESCAPE:
+                    self.homescreen = True
+
             if event.type == pygame.KEYDOWN and self.target_box_set and self.start_box_set and not self.searching and not self.homescreen:
                 # changes here
 
@@ -212,12 +282,6 @@ class VisualizerApp:
                     self.completed = False
                     self._reset_algo_variables()
                     self._init_A_star()
-
-            if event.type == pygame.KEYDOWN and not self.searching:
-                if event.key == pygame.K_r:
-                    self._reset_algo_variables()
-                    self._resetgrid(2)
-                    self._init_randomgrid()
 
     def _resetgrid(self, val):
         for i in range(self.properties.columns):
@@ -237,7 +301,7 @@ class VisualizerApp:
 
     def _get_randomwall(self):
         n = random.randint(1, 100)
-        if n % 5 < 2:
+        if n % 5 <= 2:
             n = random.randint(1, 2)
             if n == 1:
                 return False
@@ -317,10 +381,20 @@ class VisualizerApp:
                 self._draw_targeticon()
         else:
             self._displayhomescreen()
+            if not self.helpscreen:
+                self._displayhomebuttons()
         pygame.display.flip()
 
     def _displayhomescreen(self):
-        pass
+        homescreenrect = self.homescreen_img.get_rect()
+        homescreenrect.center = self.window.get_rect().center
+        self.window.blit(self.homescreen_img, homescreenrect)
+
+    def _displayhomebuttons(self):
+        self.start_custom.draw_button()
+        self.start_random.draw_button()
+        self.help_button.draw_button()
+        self.exit_button.draw_button()
 
     def _drawGrid(self):
         for i in range(self.properties.columns):

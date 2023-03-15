@@ -38,6 +38,11 @@ class Box:
         self.neighbours = []
         self.prior = None
 
+    def resetsrcdest(self):
+        self.start = False
+        self.wall = False
+        self.target = False
+
     def set_neighbours(self):
         if self.x > 0:
             if not self.grid[self.x - 1][self.y].wall:
