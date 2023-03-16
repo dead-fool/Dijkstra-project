@@ -28,7 +28,6 @@ class VisualizerApp:
         self._init_images()
         self._init_variables()
         self._create_grid()
-        self._prep_help_msg()
         self.homescreen = True
         self.helpscreen = False
         self.start_custom = Button(self, 'start  custom')
@@ -66,6 +65,7 @@ class VisualizerApp:
         self.target_icon = pygame.transform.scale(
             self.target_icon, (self.properties.box_width, self.properties.box_height))
         self.homescreen_img = pygame.image.load('images/landing.png')
+        self.helpscreen_img = pygame.image.load('images/help.png')
 
     def _create_grid(self):
         for i in range(self.properties.columns):
@@ -195,12 +195,12 @@ class VisualizerApp:
 
         else:
             if self.searching:
+                self.searching = False
+                self.completed = True
                 self.begin_search['astar'] = False
                 self._no_solution_prompt()
 
     def _no_solution_prompt(self):
-        self.searching = False
-        self.completed = True
         self._reset_algo_variables()
         Tk().wm_withdraw()
         messagebox.showinfo("No Solution", "There is no solution!")
@@ -233,6 +233,8 @@ class VisualizerApp:
                         self.queue.put_nowait(neighbour)
         else:
             if self.searching:
+                self.searching = False
+                self.completed = True
                 self.begin_search['dijk'] = False
                 self._no_solution_prompt()
 
@@ -267,9 +269,10 @@ class VisualizerApp:
                     elif pygame.mouse.get_pressed()[2]:
                         self._mouse_event_rightclick(mouse_x, mouse_y)
             # start algorithm , changes here
-            if event.type == pygame.KEYDOWN and not self.searching and not self.homescreen:
+            if event.type == pygame.KEYDOWN and not self.searching:
                 if event.key == pygame.K_ESCAPE:
                     self.homescreen = True
+                    self.helpscreen = False
 
             if event.type == pygame.KEYDOWN and self.target_box_set and self.start_box_set and not self.searching and not self.homescreen:
                 # changes here
@@ -386,8 +389,13 @@ class VisualizerApp:
             if not self.helpscreen:
                 self._displayhomebuttons()
             if self.helpscreen:
-                self.window.blit(self.help_image, self.help_image_rect)
+                self._displayhelpscreen()
         pygame.display.flip()
+
+    def _displayhelpscreen(self):
+        helpscreenrect = self.helpscreen_img.get_rect()
+        helpscreenrect.center = self.window.get_rect().center
+        self.window.blit(self.helpscreen_img, helpscreenrect)
 
     def _displayhomescreen(self):
         homescreenrect = self.homescreen_img.get_rect()
@@ -399,21 +407,6 @@ class VisualizerApp:
         self.start_random.draw_button()
         self.help_button.draw_button()
         self.exit_button.draw_button()
-
-    def _prep_help_msg(self):
-        msg = ''' 
-        - Left Click on the cell to select/unselect starting node\n
-        - Once Starting Node is selected, left click and drag to\ninsert wall
-        - Select 1 to run DIJKSTRA'S ALGORITHM\n
-        - SELECT 2 to run A* ALGORITHM\n
-        - Right Click on the cell to select target node\n- Press 'ESC' to go back to Home Menu'''
-        text_color = (0, 0, 0)
-        font = pygame.font.SysFont(None, 28)
-        rect = pygame.Rect(0, 0, 300, 400)
-        rect.center = self.window.get_rect().center
-        self.help_image = font.render(msg, True, text_color)
-        self.help_image_rect = self.help_image.get_rect()
-        self.help_image_rect.center = rect.center
 
     def _drawGrid(self):
         for i in range(self.properties.columns):

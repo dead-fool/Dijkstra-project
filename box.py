@@ -22,27 +22,6 @@ class Box:
         self.queued = False
         self.visited = False
 
-    def reset(self):
-        self.start = False
-        self.wall = False
-        self.target = False
-
-    def resetwall(self):
-        self.wall = False
-
-    def resetflags(self):
-        self.queued = False
-        self.visited = False
-
-    def resetvalues(self):
-        self.neighbours = []
-        self.prior = None
-
-    def resetsrcdest(self):
-        self.start = False
-        self.wall = False
-        self.target = False
-
     def set_neighbours(self):
         if self.x > 0:
             if not self.grid[self.x - 1][self.y].wall:
@@ -70,3 +49,24 @@ class Box:
         if self.x >= 0 and self.y >= 0:
             pygame.draw.rect(self.window, color, (self.x * self.width,
                                                   self.y * self.height, self.width - 1, self.height - 1))
+
+    def reset(self):
+        self.start = False
+        self.wall = False
+        self.target = False
+
+    def resetwall(self):
+        self.wall = False
+
+    def resetflags(self):
+        self.queued = False
+        self.visited = False
+
+    def resetvalues(self):
+        self.neighbours = []
+        self.prior = None
+
+    def resetsrcdest(self):
+        self.start = False
+        self.wall = False
+        self.target = False
