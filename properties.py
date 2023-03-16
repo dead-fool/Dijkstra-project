@@ -1,4 +1,8 @@
+"""contains the properties for the program, pretty self explanatory"""
+
+
 class Properties:
+    """stores all the properties, has no methods"""
 
     def __init__(self):
         self.window_width = 800
